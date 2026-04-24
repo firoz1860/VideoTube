@@ -304,13 +304,88 @@ html[data-theme='light'] .text-slate-500 {
 html[data-theme='light'] input,
 html[data-theme='light'] textarea,
 html[data-theme='light'] select {
-  background-color: rgb(var(--app-surface-2)) !important;
+  background-color: white !important;
   border-color: rgb(var(--app-border)) !important;
   color: rgb(var(--app-text)) !important;
 }
 
+html[data-theme='light'] input::placeholder,
+html[data-theme='light'] textarea::placeholder {
+  color: rgb(148 163 184) !important;
+}
+
 html[data-theme='light'] .skeleton {
   background-color: rgb(var(--app-surface-2)) !important;
+}
+
+/* ─── Light theme: hover & interactive utility overrides ────────────────────── */
+
+/* Sidebar items (styles compiled via @apply, so target the class directly) */
+html[data-theme='light'] .sidebar-item {
+  color: rgb(71 85 105);
+}
+html[data-theme='light'] .sidebar-item:hover {
+  background-color: rgb(226 232 240) !important;
+  color: rgb(15 23 42) !important;
+}
+
+/* Button secondary (inline classes on DOM elements) */
+html[data-theme='light'] .hover\:bg-slate-700:hover,
+html[data-theme='light'] .hover\:bg-slate-700\/60:hover {
+  background-color: rgb(226 232 240) !important;
+  color: rgb(15 23 42) !important;
+}
+html[data-theme='light'] .hover\:border-slate-500:hover {
+  border-color: rgb(148 163 184) !important;
+}
+
+/* Error / success alert text — the /10 and /40 variants are too faint in light */
+html[data-theme='light'] .text-red-200 {
+  color: rgb(185 28 28) !important;
+}
+html[data-theme='light'] .text-emerald-200 {
+  color: rgb(6 95 70) !important;
+}
+html[data-theme='light'] .bg-red-500\/10 {
+  background-color: rgb(254 226 226) !important;
+}
+html[data-theme='light'] .bg-emerald-500\/10 {
+  background-color: rgb(209 250 229) !important;
+}
+html[data-theme='light'] .border-red-500\/40 {
+  border-color: rgba(239, 68, 68, 0.5) !important;
+}
+html[data-theme='light'] .border-emerald-500\/40 {
+  border-color: rgba(16, 185, 129, 0.5) !important;
+}
+
+/* Appearance selector buttons */
+html[data-theme='light'] .bg-purple-500\/20 {
+  background-color: rgb(237 233 254) !important;
+}
+html[data-theme='light'] .bg-slate-700\/40 {
+  background-color: white !important;
+}
+
+/* Cover image dashed upload border */
+html[data-theme='light'] .border-gray-600 {
+  border-color: rgb(203 213 225) !important;
+}
+
+/* Settings form card — keep white text on solid purple active nav links */
+html[data-theme='light'] .bg-purple-500.text-white,
+html[data-theme='light'] .bg-purple-600.text-white {
+  color: white !important;
+}
+
+/* Settings form container — add a soft shadow over the existing bg-white override */
+html[data-theme='light'] .bg-slate-800.rounded-lg {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Video progress track */
+html[data-theme='light'] .video-progress {
+  background-color: rgb(226 232 240) !important;
 }
 
 /* ─── Responsive helpers ────────────────────────────────────────────────────── */

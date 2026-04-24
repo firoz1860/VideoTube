@@ -15,8 +15,12 @@ import { serializeUser, serializeVideo } from "../utils/serializers.js";
 const googleClient = new OAuth2Client();
 
 const getCookieOptions = () => {
-  const secure = process.env.COOKIE_SECURE === "true";
-  let sameSite = process.env.COOKIE_SAME_SITE || (secure ? "none" : "lax");
+  // In production (cross-origin between Vercel + Render), cookies need
+  // secure:true + sameSite:"none" or browsers will silently drop them.
+  const isProduction = process.env.NODE_ENV === "production";
+  const secure = process.env.COOKIE_SECURE === "true" || isProduction;
+  const defaultSameSite = isProduction ? "none" : "lax";
+  let sameSite = process.env.COOKIE_SAME_SITE || defaultSameSite;
 
   if (sameSite === "none" && !secure) {
     sameSite = "lax";
