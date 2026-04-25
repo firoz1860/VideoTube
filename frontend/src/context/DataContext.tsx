@@ -1,4 +1,7 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, {
+  createContext, useCallback, useContext, useEffect,
+  useMemo, useRef, useState,
+} from 'react';
 import { useAuth } from './AuthContext';
 import { api } from '../lib/api';
 import { mapCollection, mapUser, mapVideo } from '../lib/mappers';
@@ -33,44 +36,52 @@ interface DataContextType {
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
-const mergeUniqueVideos = (currentVideos: Video[], incomingVideos: Video[]) => {
-  const videoMap = new Map<string, Video>();
-
-  currentVideos.forEach((video) => {
-    if (video.id) {
-      videoMap.set(video.id, video);
-    }
-  });
-
-  incomingVideos.forEach((video) => {
-    if (video.id) {
-      videoMap.set(video.id, video);
-    }
-  });
-
-  return Array.from(videoMap.values()).sort(
-    (first, second) => new Date(second.timestamp).getTime() - new Date(first.timestamp).getTime()
+const mergeUniqueVideos = (current: Video[], incoming: Video[]): Video[] => {
+  const map = new Map<string, Video>();
+  current.forEach((v) => { if (v.id) map.set(v.id, v); });
+  incoming.forEach((v) => { if (v.id) map.set(v.id, v); });
+  return Array.from(map.values()).sort(
+    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
   );
 };
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, user } = useAuth();
-  const [isLoading, setIsLoading] = useState(true);
-  const [videos, setVideos] = useState<Video[]>([]);
-  const [likedVideos, setLikedVideos] = useState<string[]>([]);
-  const [likedComments, setLikedComments] = useState<string[]>([]);
-  const [watchHistory, setWatchHistory] = useState<string[]>([]);
-  const [subscriptions, setSubscriptions] = useState<string[]>([]);
-  const [collections, setCollections] = useState<Collection[]>([]);
+
+  const [isLoading, setIsLoading]           = useState(true);
+  const [videos, setVideos]                 = useState<Video[]>([]);
+  const [likedVideos, setLikedVideos]       = useState<string[]>([]);
+  const [likedComments, setLikedComments]   = useState<string[]>([]);
+  const [watchHistory, setWatchHistory]     = useState<string[]>([]);
+  const [subscriptions, setSubscriptions]   = useState<string[]>([]);
+  const [collections, setCollections]       = useState<Collection[]>([]);
   const [subscribedChannels, setSubscribedChannels] = useState<User[]>([]);
 
+  // Stable user id — changing name/avatar must NOT re-trigger private data load
+  const userId = user?.id ?? null;
+
+  // ── Derived users map (all known channels) ──────────────────────────────────
+  const users = useMemo(() => {
+    const map = new Map<string, User>();
+    videos.forEach((v) => map.set(v.channel.id, v.channel));
+    subscribedChannels.forEach((c) => map.set(c.id, c));
+    return Array.from(map.values());
+  }, [videos, subscribedChannels]);
+
+  // Keep a ref to the latest users so toggleSubscription never has a stale closure
+  const usersRef = useRef<User[]>(users);
+  useEffect(() => { usersRef.current = users; }, [users]);
+
+  // ── refreshVideos — merges so private data is not wiped ────────────────────
   const refreshVideos = useCallback(async () => {
     const response = await api.getVideos();
-    setVideos((response.items || []).map(mapVideo));
+    const fetched = (response.items || []).map(mapVideo);
+    setVideos((current) => mergeUniqueVideos(current, fetched));
   }, []);
 
+  // ── loadPrivateData — only depends on isAuthenticated + userId ────────────
   const loadPrivateData = useCallback(async () => {
-    if (!isAuthenticated || !user?.id) {
+    if (!isAuthenticated || !userId) {
       setLikedVideos([]);
       setWatchHistory([]);
       setSubscriptions([]);
@@ -80,30 +91,32 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
-      const [likedResult, historyResult, channelListResult, playlistListResult] = await Promise.allSettled([
+      const [likedRes, historyRes, channelsRes, playlistsRes] = await Promise.allSettled([
         api.getLikedVideos(),
         api.getWatchHistory(),
-        api.getSubscribedChannels(user.id),
-        api.getUserPlaylists(user.id),
+        api.getSubscribedChannels(userId),
+        api.getUserPlaylists(userId),
       ]);
 
-      const liked = likedResult.status === 'fulfilled' ? likedResult.value : [];
-      const history = historyResult.status === 'fulfilled' ? historyResult.value : [];
-      const channelList = channelListResult.status === 'fulfilled' ? channelListResult.value : [];
-      const playlistList = playlistListResult.status === 'fulfilled' ? playlistListResult.value : [];
+      const liked     = likedRes.status     === 'fulfilled' ? likedRes.value     : [];
+      const history   = historyRes.status   === 'fulfilled' ? historyRes.value   : [];
+      const channels  = channelsRes.status  === 'fulfilled' ? channelsRes.value  : [];
+      const playlists = playlistsRes.status === 'fulfilled' ? playlistsRes.value : [];
 
-      const likedVideoList = liked.map(mapVideo);
-      const historyVideoList = history.map(mapVideo);
-      const playlistVideoList = playlistList
-        .flatMap((playlist) => (Array.isArray((playlist as { videos?: unknown[] }).videos) ? (playlist as { videos: unknown[] }).videos : []))
+      const likedVideos   = liked.map(mapVideo);
+      const historyVideos = history.map(mapVideo);
+      const playlistVideos = playlists
+        .flatMap((p) => Array.isArray((p as { videos?: unknown[] }).videos)
+          ? (p as { videos: unknown[] }).videos : [])
         .map(mapVideo);
-      const nextChannels = channelList.map(mapUser);
 
-      setVideos((currentVideos) => mergeUniqueVideos(currentVideos, [...likedVideoList, ...historyVideoList, ...playlistVideoList]));
-      setLikedVideos(likedVideoList.map((video) => video.id));
-      setWatchHistory(historyVideoList.map((video) => video.id));
-      setSubscriptions(nextChannels.map((channel) => channel.id));
-      setCollections(playlistList.map(mapCollection));
+      const nextChannels = channels.map(mapUser);
+
+      setVideos((cur) => mergeUniqueVideos(cur, [...likedVideos, ...historyVideos, ...playlistVideos]));
+      setLikedVideos(likedVideos.map((v) => v.id));
+      setWatchHistory(historyVideos.map((v) => v.id));
+      setSubscriptions(nextChannels.map((c) => c.id));
+      setCollections(playlists.map(mapCollection));
       setSubscribedChannels(nextChannels);
     } catch {
       setLikedVideos([]);
@@ -112,10 +125,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setCollections([]);
       setSubscribedChannels([]);
     }
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, userId]); // userId is a primitive — profile updates won't re-trigger
 
+  // ── Bootstrap ────────────────────────────────────────────────────────────────
   useEffect(() => {
-    const bootstrap = async () => {
+    const run = async () => {
       setIsLoading(true);
       try {
         await refreshVideos();
@@ -124,135 +138,109 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsLoading(false);
       }
     };
-
-    void bootstrap();
+    void run();
   }, [refreshVideos, loadPrivateData]);
 
+  // ── Sync channel info when user profile changes (name, avatar, etc.) ────────
   useEffect(() => {
-    if (!user) {
-      return;
-    }
-
-    setVideos((currentVideos) =>
-      currentVideos.map((video) =>
-        video.channel.id === user.id
-          ? {
-              ...video,
-              channel: {
-                ...video.channel,
-                name: user.name,
-                username: user.username,
-                avatar: user.avatar,
-                coverImage: user.coverImage || video.channel.coverImage,
-                subscribers: user.subscribers ?? video.channel.subscribers,
-              },
-            }
-          : video
+    if (!user) return;
+    setVideos((cur) =>
+      cur.map((v) =>
+        v.channel.id === user.id
+          ? { ...v, channel: { ...v.channel, name: user.name, username: user.username, avatar: user.avatar, coverImage: user.coverImage || v.channel.coverImage, subscribers: user.subscribers ?? v.channel.subscribers } }
+          : v
       )
     );
-
-    setSubscribedChannels((currentChannels) =>
-      currentChannels.map((channel) =>
-        channel.id === user.id
-          ? {
-              ...channel,
-              name: user.name,
-              username: user.username,
-              avatar: user.avatar,
-              coverImage: user.coverImage || channel.coverImage,
-              email: user.email || channel.email,
-              subscribers: user.subscribers ?? channel.subscribers,
-            }
-          : channel
+    setSubscribedChannels((cur) =>
+      cur.map((c) =>
+        c.id === user.id
+          ? { ...c, name: user.name, username: user.username, avatar: user.avatar, coverImage: user.coverImage || c.coverImage, email: user.email || c.email, subscribers: user.subscribers ?? c.subscribers }
+          : c
       )
     );
   }, [user]);
 
-  const users = useMemo(() => {
-    const channels = new Map<string, User>();
-
-    videos.forEach((video) => {
-      channels.set(video.channel.id, video.channel);
-    });
-
-    subscribedChannels.forEach((channel) => {
-      channels.set(channel.id, channel);
-    });
-
-    return Array.from(channels.values());
-  }, [videos, subscribedChannels]);
-
-  const updateVideoChannel = (channelId: string, subscriberCount: number) => {
-    setVideos((currentVideos) =>
-      currentVideos.map((video) =>
-        video.channel.id === channelId
-          ? { ...video, channel: { ...video.channel, subscribers: subscriberCount } }
-          : video
-      )
+  // ── updateVideoChannel (stable via useCallback) ───────────────────────────
+  const updateVideoChannel = useCallback((channelId: string, subscriberCount: number) => {
+    setVideos((cur) =>
+      cur.map((v) => v.channel.id === channelId ? { ...v, channel: { ...v.channel, subscribers: subscriberCount } } : v)
     );
-
-    setSubscribedChannels((currentChannels) =>
-      currentChannels.map((channel) =>
-        channel.id === channelId ? { ...channel, subscribers: subscriberCount } : channel
-      )
+    setSubscribedChannels((cur) =>
+      cur.map((c) => c.id === channelId ? { ...c, subscribers: subscriberCount } : c)
     );
-  };
+  }, []);
 
+  // ── Video CRUD ────────────────────────────────────────────────────────────────
   const addVideo = useCallback(async (formData: FormData) => {
     const response = await api.createVideo(formData);
-    const nextVideo = mapVideo(response);
-    setVideos((currentVideos) => [nextVideo, ...currentVideos.filter((video) => video.id !== nextVideo.id)]);
+    const next = mapVideo(response);
+    setVideos((cur) => [next, ...cur.filter((v) => v.id !== next.id)]);
     await refreshVideos().catch(() => undefined);
-    return nextVideo;
+    return next;
   }, [refreshVideos]);
 
-  const updateVideo = useCallback(async (id: string, updates: { title?: string; description?: string; thumbnail?: string | File }) => {
-    const payload = updates.thumbnail instanceof File ? new FormData() : ({} as Record<string, unknown>);
-
-    if (payload instanceof FormData) {
-      if (updates.title) payload.append('title', updates.title);
-      if (updates.description) payload.append('description', updates.description);
-      payload.append('thumbnail', updates.thumbnail);
-    } else {
-      if (updates.title !== undefined) payload.title = updates.title;
-      if (updates.description !== undefined) payload.description = updates.description;
-    }
+  const updateVideo = useCallback(async (
+    id: string,
+    updates: { title?: string; description?: string; thumbnail?: string | File },
+  ) => {
+    const payload = updates.thumbnail instanceof File
+      ? (() => {
+          const fd = new FormData();
+          if (updates.title)       fd.append('title', updates.title);
+          if (updates.description) fd.append('description', updates.description);
+          fd.append('thumbnail', updates.thumbnail as File);
+          return fd;
+        })()
+      : ({
+          ...(updates.title       !== undefined && { title: updates.title }),
+          ...(updates.description !== undefined && { description: updates.description }),
+        } as Record<string, unknown>);
 
     const response = await api.updateVideo(id, payload);
-    const nextVideo = mapVideo(response);
-    setVideos((currentVideos) => currentVideos.map((video) => (video.id === id ? nextVideo : video)));
-    return nextVideo;
+    const next = mapVideo(response);
+    setVideos((cur) => cur.map((v) => v.id === id ? next : v));
+    return next;
   }, []);
 
   const deleteVideo = useCallback(async (id: string) => {
     await api.deleteVideo(id);
-    setVideos((currentVideos) => currentVideos.filter((video) => video.id !== id));
-    setLikedVideos((current) => current.filter((videoId) => videoId !== id));
-    setWatchHistory((current) => current.filter((videoId) => videoId !== id));
+    setVideos((cur)         => cur.filter((v) => v.id !== id));
+    setLikedVideos((cur)    => cur.filter((x) => x !== id));
+    setWatchHistory((cur)   => cur.filter((x) => x !== id));
   }, []);
 
+  // ── Likes ─────────────────────────────────────────────────────────────────────
   const toggleLike = useCallback(async (videoId: string) => {
     if (!isAuthenticated) return;
-
-    const response = await api.toggleVideoLike(videoId);
-    setLikedVideos((current) =>
-      response.liked ? Array.from(new Set([videoId, ...current])) : current.filter((id) => id !== videoId)
+    const res = await api.toggleVideoLike(videoId);
+    setLikedVideos((cur) =>
+      res.liked ? Array.from(new Set([videoId, ...cur])) : cur.filter((id) => id !== videoId)
     );
-    setVideos((currentVideos) =>
-      currentVideos.map((video) => (video.id === videoId ? { ...video, likeCount: response.likeCount } : video))
+    setVideos((cur) =>
+      cur.map((v) => v.id === videoId ? { ...v, likeCount: res.likeCount } : v)
     );
   }, [isAuthenticated]);
 
+  const toggleCommentLike = useCallback(async (commentId: string) => {
+    if (!isAuthenticated) return { likeCount: 0, liked: false };
+    const res = await api.toggleCommentLike(commentId);
+    setLikedComments((cur) =>
+      res.liked ? Array.from(new Set([commentId, ...cur])) : cur.filter((id) => id !== commentId)
+    );
+    return res;
+  }, [isAuthenticated]);
+
+  // ── History ───────────────────────────────────────────────────────────────────
   const addToHistory = useCallback(async (videoId: string) => {
     if (!isAuthenticated) return;
     await api.addToWatchHistory(videoId);
-    setWatchHistory((current) => [videoId, ...current.filter((id) => id !== videoId)]);
+    setWatchHistory((cur) => [videoId, ...cur.filter((id) => id !== videoId)]);
   }, [isAuthenticated]);
 
   const removeFromHistory = useCallback(async (videoId: string) => {
     if (!isAuthenticated) return;
     await api.removeFromWatchHistory(videoId);
-    setWatchHistory((current) => current.filter((id) => id !== videoId));
+    setWatchHistory((cur) => cur.filter((id) => id !== videoId));
   }, [isAuthenticated]);
 
   const clearHistory = useCallback(async () => {
@@ -261,109 +249,83 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setWatchHistory([]);
   }, [isAuthenticated]);
 
+  // ── Subscriptions ─────────────────────────────────────────────────────────────
   const toggleSubscription = useCallback(async (channelId: string) => {
     if (!isAuthenticated) return;
 
-    const response = await api.toggleSubscription(channelId);
+    const res = await api.toggleSubscription(channelId);
 
-    setSubscriptions((current) =>
-      response.subscribed ? Array.from(new Set([channelId, ...current])) : current.filter((id) => id !== channelId)
+    setSubscriptions((cur) =>
+      res.subscribed
+        ? Array.from(new Set([channelId, ...cur]))
+        : cur.filter((id) => id !== channelId)
     );
 
-    updateVideoChannel(channelId, response.subscriberCount);
+    updateVideoChannel(channelId, res.subscriberCount);
 
-    if (response.subscribed) {
-      const existingChannel = users.find((channel) => channel.id === channelId);
-      if (existingChannel) {
-        setSubscribedChannels((current) => {
-          const withoutChannel = current.filter((channel) => channel.id !== channelId);
-          return [{ ...existingChannel, subscribers: response.subscriberCount }, ...withoutChannel];
-        });
+    if (res.subscribed) {
+      // Use ref so we always read the latest users without a stale closure
+      const existing = usersRef.current.find((c) => c.id === channelId);
+      if (existing) {
+        setSubscribedChannels((cur) => [
+          { ...existing, subscribers: res.subscriberCount },
+          ...cur.filter((c) => c.id !== channelId),
+        ]);
       } else {
-        const channelResponse = await api.getChannelById(channelId);
-        setSubscribedChannels((current) => [mapUser(channelResponse), ...current]);
+        const channelData = await api.getChannelById(channelId);
+        setSubscribedChannels((cur) => [mapUser(channelData), ...cur]);
       }
     } else {
-      setSubscribedChannels((current) => current.filter((channel) => channel.id !== channelId));
+      setSubscribedChannels((cur) => cur.filter((c) => c.id !== channelId));
     }
-  }, [isAuthenticated, users]);
+  }, [isAuthenticated, updateVideoChannel]); // no longer depends on users
 
+  // ── Collections ───────────────────────────────────────────────────────────────
   const addCollection = useCallback(async (collection: Omit<Collection, 'id'>) => {
-    const response = await api.createPlaylist({ name: collection.name, description: collection.description });
-    setCollections((current) => [mapCollection(response), ...current]);
+    const res = await api.createPlaylist({ name: collection.name, description: collection.description });
+    setCollections((cur) => [mapCollection(res), ...cur]);
   }, []);
 
   const updateCollection = useCallback(async (id: string, updates: Partial<Collection>) => {
-    const response = await api.updatePlaylist(id, { name: updates.name, description: updates.description });
-    const nextCollection = mapCollection(response);
-    setCollections((current) => current.map((collection) => (collection.id === id ? nextCollection : collection)));
+    const res = await api.updatePlaylist(id, { name: updates.name, description: updates.description });
+    const next = mapCollection(res);
+    setCollections((cur) => cur.map((c) => c.id === id ? next : c));
   }, []);
 
   const deleteCollection = useCallback(async (id: string) => {
     await api.deletePlaylist(id);
-    setCollections((current) => current.filter((collection) => collection.id !== id));
+    setCollections((cur) => cur.filter((c) => c.id !== id));
   }, []);
-
-  const toggleCommentLike = useCallback(async (commentId: string) => {
-    if (!isAuthenticated) return { likeCount: 0, liked: false };
-    const response = await api.toggleCommentLike(commentId);
-    setLikedComments((current) =>
-      response.liked ? Array.from(new Set([commentId, ...current])) : current.filter((id) => id !== commentId)
-    );
-    return response;
-  }, [isAuthenticated]);
 
   const addVideoToCollection = useCallback(async (collectionId: string, videoId: string) => {
     await api.addVideoToPlaylist(collectionId, videoId);
-    setCollections((current) =>
-      current.map((col) =>
-        col.id === collectionId && !col.videos.includes(videoId)
-          ? { ...col, videos: [videoId, ...col.videos] }
-          : col
-      )
+    setCollections((cur) =>
+      cur.map((c) => c.id === collectionId && !c.videos.includes(videoId)
+        ? { ...c, videos: [videoId, ...c.videos] }
+        : c)
     );
   }, []);
 
   const removeVideoFromCollection = useCallback(async (collectionId: string, videoId: string) => {
     await api.removeVideoFromPlaylist(collectionId, videoId);
-    setCollections((current) =>
-      current.map((col) =>
-        col.id === collectionId
-          ? { ...col, videos: col.videos.filter((id) => id !== videoId) }
-          : col
-      )
+    setCollections((cur) =>
+      cur.map((c) => c.id === collectionId
+        ? { ...c, videos: c.videos.filter((id) => id !== videoId) }
+        : c)
     );
   }, []);
 
   return (
-    <DataContext.Provider
-      value={{
-        isLoading,
-        videos,
-        users,
-        likedVideos,
-        likedComments,
-        watchHistory,
-        subscriptions,
-        collections,
-        subscribedChannels,
-        refreshVideos,
-        addVideo,
-        updateVideo,
-        deleteVideo,
-        toggleLike,
-        toggleCommentLike,
-        addToHistory,
-        removeFromHistory,
-        clearHistory,
-        toggleSubscription,
-        addCollection,
-        updateCollection,
-        deleteCollection,
-        addVideoToCollection,
-        removeVideoFromCollection,
-      }}
-    >
+    <DataContext.Provider value={{
+      isLoading, videos, users, likedVideos, likedComments, watchHistory,
+      subscriptions, collections, subscribedChannels,
+      refreshVideos, addVideo, updateVideo, deleteVideo,
+      toggleLike, toggleCommentLike,
+      addToHistory, removeFromHistory, clearHistory,
+      toggleSubscription,
+      addCollection, updateCollection, deleteCollection,
+      addVideoToCollection, removeVideoFromCollection,
+    }}>
       {children}
     </DataContext.Provider>
   );
@@ -371,9 +333,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 export const useData = () => {
   const context = useContext(DataContext);
-  if (!context) {
-    throw new Error('useData must be used within a DataProvider');
-  }
-
+  if (!context) throw new Error('useData must be used within a DataProvider');
   return context;
 };
