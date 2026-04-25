@@ -234,7 +234,7 @@ const VideoDetail: React.FC = () => {
         {/* Main content */}
         <div className="lg:w-2/3">
           {/* Video player */}
-          <div className="aspect-video bg-black rounded-lg overflow-hidden mb-4">
+          <div className="video-wrapper aspect-video rounded-xl overflow-hidden mb-4 shadow-lg shadow-black/30">
             {video.videoUrl ? (
               <video
                 controls
@@ -242,6 +242,8 @@ const VideoDetail: React.FC = () => {
                 className="w-full h-full"
                 src={video.videoUrl}
                 key={video.id}
+                preload="metadata"
+                playsInline
               />
             ) : (
               <img src={video.thumbnail} alt={video.title} className="w-full h-full object-cover" />

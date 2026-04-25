@@ -4,12 +4,13 @@
 
 /* ─── Design tokens ────────────────────────────────────────────────────────── */
 :root {
-  --app-bg: 248 250 252;
-  --app-surface: 255 255 255;
-  --app-surface-2: 241 245 249;
-  --app-text: 15 23 42;
-  --app-muted: 71 85 105;
-  --app-border: 203 213 225;
+  /* Light mode — soft purple palette */
+  --app-bg: 245 243 255;        /* purple-50   #F5F3FF */
+  --app-surface: 253 252 255;   /* near-white with purple tint */
+  --app-surface-2: 237 233 254; /* purple-100  #EDE9FE */
+  --app-text: 15 23 42;         /* slate-900 */
+  --app-muted: 71 85 105;       /* slate-600 */
+  --app-border: 221 214 254;    /* purple-200  #DDD6FE */
 
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
@@ -257,6 +258,19 @@ video {
   to   { opacity: 1; transform: scale(1); }
 }
 
+@keyframes bounce {
+  0%, 100% { transform: translateY(0);    opacity: 0.5; }
+  50%       { transform: translateY(-5px); opacity: 1;   }
+}
+
+/* ─── Light theme token override (redundant but explicit) ──────────────────── */
+html[data-theme='light'] {
+  --app-bg: 245 243 255;
+  --app-surface: 253 252 255;
+  --app-surface-2: 237 233 254;
+  --app-border: 221 214 254;
+}
+
 /* ─── Light theme overrides ─────────────────────────────────────────────────── */
 html[data-theme='light'] .bg-\[\#0F1729\] {
   background-color: rgb(var(--app-bg)) !important;
@@ -311,7 +325,7 @@ html[data-theme='light'] select {
 
 html[data-theme='light'] input::placeholder,
 html[data-theme='light'] textarea::placeholder {
-  color: rgb(148 163 184) !important;
+  color: rgb(196 181 253) !important;
 }
 
 html[data-theme='light'] .skeleton {
@@ -325,18 +339,18 @@ html[data-theme='light'] .sidebar-item {
   color: rgb(71 85 105);
 }
 html[data-theme='light'] .sidebar-item:hover {
-  background-color: rgb(226 232 240) !important;
+  background-color: rgb(237 233 254) !important;
   color: rgb(15 23 42) !important;
 }
 
 /* Button secondary (inline classes on DOM elements) */
 html[data-theme='light'] .hover\:bg-slate-700:hover,
 html[data-theme='light'] .hover\:bg-slate-700\/60:hover {
-  background-color: rgb(226 232 240) !important;
+  background-color: rgb(237 233 254) !important;
   color: rgb(15 23 42) !important;
 }
 html[data-theme='light'] .hover\:border-slate-500:hover {
-  border-color: rgb(148 163 184) !important;
+  border-color: rgb(196 181 253) !important;
 }
 
 /* Error / success alert text — the /10 and /40 variants are too faint in light */
@@ -369,7 +383,7 @@ html[data-theme='light'] .bg-slate-700\/40 {
 
 /* Cover image dashed upload border */
 html[data-theme='light'] .border-gray-600 {
-  border-color: rgb(203 213 225) !important;
+  border-color: rgb(221 214 254) !important;
 }
 
 /* Settings form card — keep white text on solid purple active nav links */
@@ -385,7 +399,99 @@ html[data-theme='light'] .bg-slate-800.rounded-lg {
 
 /* Video progress track */
 html[data-theme='light'] .video-progress {
-  background-color: rgb(226 232 240) !important;
+  background-color: rgb(237 233 254) !important;
+}
+
+/* ─── Light theme: Login / Register page overrides ─────────────────────────── */
+
+/* "Back to dashboard" hover and similar hover:text-white links */
+html[data-theme='light'] .hover\:text-white:hover {
+  color: rgb(15 23 42) !important;
+}
+
+/* Error boxes — /20 variant used on auth pages */
+html[data-theme='light'] .bg-red-500\/20 {
+  background-color: rgb(254 226 226) !important;
+}
+html[data-theme='light'] .text-red-300 {
+  color: rgb(185 28 28) !important;
+}
+
+/* Success box — /20 variant used on auth pages */
+html[data-theme='light'] .bg-emerald-500\/20 {
+  background-color: rgb(209 250 229) !important;
+}
+
+/* File upload labels (bg-slate-700 hover:bg-slate-600) */
+html[data-theme='light'] .hover\:bg-slate-600:hover {
+  background-color: rgb(221 214 254) !important;
+  color: rgb(15 23 42) !important;
+}
+
+/* Divider line (border-slate-700 is already covered; just the separator span) */
+html[data-theme='light'] .border-slate-700 {
+  border-color: rgb(var(--app-border)) !important;
+}
+
+/* Checkbox border */
+html[data-theme='light'] .border-gray-600 {
+  border-color: rgb(221 214 254) !important;
+}
+
+/* ─── Light theme: sidebar + video detail refinements ───────────────────────── */
+
+/* Sidebar panel border */
+html[data-theme='light'] aside .border-slate-800\/60,
+html[data-theme='light'] .border-slate-800\/60 {
+  border-color: rgb(237 233 254) !important;
+}
+
+/* Sidebar mobile close button area */
+html[data-theme='light'] aside .border-slate-800 {
+  border-color: rgb(237 233 254) !important;
+}
+
+/* Sidebar menu text + close button */
+html[data-theme='light'] aside .text-slate-300 {
+  color: rgb(71 85 105) !important;
+}
+html[data-theme='light'] aside .text-slate-400 {
+  color: rgb(100 116 139) !important;
+}
+html[data-theme='light'] aside .hover\:bg-slate-800:hover {
+  background-color: rgb(245 243 255) !important;
+}
+html[data-theme='light'] aside .hover\:text-white:hover {
+  color: rgb(15 23 42) !important;
+}
+
+/* Video detail action chip: report button hover */
+html[data-theme='light'] .hover\:bg-red-900\/40:hover {
+  background-color: rgb(254 226 226) !important;
+}
+html[data-theme='light'] .hover\:text-red-400:hover {
+  color: rgb(185 28 28) !important;
+}
+
+/* Video detail description box divider */
+html[data-theme='light'] .border-b.border-gray-600 {
+  border-color: rgb(237 233 254) !important;
+}
+
+/* Comment cancel button hover */
+html[data-theme='light'] .hover\:bg-slate-700:hover {
+  background-color: rgb(237 233 254) !important;
+  color: rgb(15 23 42) !important;
+}
+
+/* bg-slate-800/80 used in nav border (already handled but belt+suspenders) */
+html[data-theme='light'] .border-slate-800\/80 {
+  border-color: rgb(237 233 254) !important;
+}
+
+/* Report modal: reason item hover */
+html[data-theme='light'] .border-transparent {
+  border-color: transparent !important;
 }
 
 /* ─── Responsive helpers ────────────────────────────────────────────────────── */
@@ -396,17 +502,91 @@ html[data-theme='light'] .video-progress {
   }
 }
 
-/* ─── Video player polish ───────────────────────────────────────────────────── */
+/* ─── Video player — enhanced ───────────────────────────────────────────────── */
+.video-wrapper {
+  position: relative;
+  background: #000;
+  border-radius: 0;
+  overflow: hidden;
+  /* Smooth fade-in when video loads */
+  animation: scaleIn 0.3s var(--ease-out-expo) both;
+}
+
 video {
   border-radius: 0;
   background: #000;
+  display: block;
+  width: 100%;
+  /* GPU-accelerated playback */
+  will-change: transform;
+  transform: translateZ(0);
 }
 
+/* Native controls gradient overlay */
 video::-webkit-media-controls-panel {
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.75));
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.8) 0%,
+    rgba(0, 0, 0, 0.3) 40%,
+    transparent 100%
+  );
+}
+
+/* Progress bar accent — purple to match brand */
+video::-webkit-media-controls-current-time-display,
+video::-webkit-media-controls-time-remaining-display {
+  color: #e9d5ff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+video::-webkit-media-controls-timeline {
+  filter: hue-rotate(-30deg) brightness(1.1); /* shifts progress bar toward purple */
+}
+
+/* Volume slider */
+video::-webkit-media-controls-volume-slider {
+  filter: hue-rotate(-30deg) brightness(1.1);
+}
+
+/* Smooth play/pause animation via container */
+.video-wrapper:focus-within {
+  outline: 2px solid rgba(139, 92, 246, 0.5);
+  outline-offset: 0;
+}
+
+/* Playback speed chip — shown by JS via data attribute */
+.video-wrapper [data-speed]:not([data-speed='1'])::after {
+  content: attr(data-speed) 'x';
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #e9d5ff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  pointer-events: none;
+  animation: scaleIn 0.15s ease both;
 }
 
 /* ─── Page transition ───────────────────────────────────────────────────────── */
 main > * {
   animation: fadeInUp 0.3s var(--ease-out-expo) both;
+}
+
+/* Smooth theme transitions on key surfaces */
+body,
+nav,
+aside,
+.card,
+.btn,
+.input,
+input,
+textarea,
+select {
+  transition:
+    background-color 0.25s var(--ease-in-out),
+    border-color 0.25s var(--ease-in-out),
+    color 0.25s var(--ease-in-out);
 }
