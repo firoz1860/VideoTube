@@ -277,31 +277,30 @@ const VideoDetail: React.FC = () => {
 
             {/* Action buttons */}
             <div className="flex items-center gap-2 flex-wrap">
-              {/* Like */}
-              <button
-                onClick={() => void handleLike()}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
-                  isLiked
-                    ? 'bg-purple-600 text-white'
-                    : 'bg-slate-700 hover:bg-slate-600 text-gray-200'
-                }`}
-              >
-                <ThumbsUp size={15} className={isLiked ? 'fill-white' : ''} />
-                <span>{formatNumber(video.likeCount || 0)}</span>
-              </button>
-
-              {/* Dislike */}
-              <button
-                onClick={handleDislike}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
-                  isDisliked
-                    ? 'bg-red-600 text-white'
-                    : 'bg-slate-700 hover:bg-slate-600 text-gray-200'
-                }`}
-              >
-                <ThumbsDown size={15} className={isDisliked ? 'fill-white' : ''} />
-                {dislikeCount > 0 && <span>{formatNumber(dislikeCount)}</span>}
-              </button>
+              {/* Like / Dislike — connected segmented control (YouTube-style) */}
+              <div className="flex items-center rounded-full overflow-hidden bg-slate-700">
+                <button
+                  onClick={() => void handleLike()}
+                  aria-pressed={isLiked}
+                  className={`flex items-center gap-1.5 pl-3.5 pr-3 py-1.5 text-sm font-medium transition-colors hover:bg-slate-600 ${
+                    isLiked ? 'text-purple-400' : 'text-gray-200'
+                  }`}
+                >
+                  <ThumbsUp size={16} className={isLiked ? 'fill-purple-400' : ''} />
+                  <span>{formatNumber(video.likeCount || 0)}</span>
+                </button>
+                <span className="w-px h-5 bg-slate-500/50" />
+                <button
+                  onClick={handleDislike}
+                  aria-pressed={isDisliked}
+                  className={`flex items-center gap-1.5 pl-3 pr-3.5 py-1.5 text-sm font-medium transition-colors hover:bg-slate-600 ${
+                    isDisliked ? 'text-red-400' : 'text-gray-200'
+                  }`}
+                >
+                  <ThumbsDown size={16} className={isDisliked ? 'fill-red-400' : ''} />
+                  {dislikeCount > 0 && <span>{formatNumber(dislikeCount)}</span>}
+                </button>
+              </div>
 
               {/* Share */}
               <button
