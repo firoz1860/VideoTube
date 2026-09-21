@@ -35,7 +35,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
             ref={(node) => { if (node?.complete) setThumbLoaded(true); }}
             src={video.thumbnail}
             alt={video.title}
-            className={`video-thumbnail w-full h-full object-cover transition-opacity duration-500 ${thumbLoaded ? 'opacity-100' : 'opacity-0'}`}
+            className={`video-thumbnail w-full h-full object-cover transition-[opacity,transform] duration-500 group-hover:scale-[1.04] ${thumbLoaded ? 'opacity-100' : 'opacity-0'}`}
             loading="lazy"
             decoding="async"
             onLoad={() => setThumbLoaded(true)}

@@ -1,4 +1,4 @@
-import { Menu, Search, X, Bell } from 'lucide-react';
+import { Menu, Search, X, Bell, Plus } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useRef, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
@@ -64,6 +64,10 @@ const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
   const dropdownTextPrimary = isLight ? 'rgb(15 23 42)' : 'rgb(248 250 252)';
   const dropdownTextMuted = isLight ? 'rgb(100 116 139)' : 'rgb(148 163 184)';
   const dropdownItemHover = isLight ? 'rgb(248 250 252)' : 'rgb(30 41 59)';
+  // YouTube-style search pill tokens
+  const searchBg = isLight ? '#ffffff' : 'rgba(15,23,42,0.6)';
+  const searchBtnBg = isLight ? 'rgb(241 245 249)' : 'rgba(30,41,59,0.85)';
+  const searchBorder = isLight ? 'rgb(203 213 225)' : 'rgba(51,65,85,0.9)';
 
   return (
     <nav
@@ -96,26 +100,28 @@ const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
             <Logo />
           </Link>
 
-          {/* Search bar — tablet + desktop */}
-          <div className="hidden md:block flex-1 mx-2 lg:mx-4 max-w-xl">
-            <form onSubmit={handleSearch} className="relative">
-              <Input
+          {/* Search — tablet + desktop (YouTube-style centered pill) */}
+          <div className="hidden md:flex flex-1 justify-center px-2 lg:px-6">
+            <form onSubmit={handleSearch} className="w-full max-w-2xl flex h-10">
+              <input
                 type="text"
-                placeholder="Search videos, channels..."
+                placeholder="Search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                icon={<Search size={16} />}
-                className="pr-10"
+                className="flex-1 min-w-0 px-4 text-sm rounded-l-full outline-none border transition-colors"
+                style={{ background: searchBg, borderColor: searchBorder, color: dropdownTextPrimary }}
+                onFocus={(e) => { e.currentTarget.style.borderColor = '#8b5cf6'; }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = searchBorder; }}
               />
               <button
                 type="submit"
                 aria-label="Search"
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors duration-150"
-                style={{ color: iconColor }}
+                className="px-6 rounded-r-full border border-l-0 flex items-center justify-center transition-colors"
+                style={{ background: searchBtnBg, borderColor: searchBorder, color: iconColor }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = iconHoverBg)}
-                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = searchBtnBg)}
               >
-                <Search size={15} />
+                <Search size={18} />
               </button>
             </form>
           </div>
@@ -139,6 +145,20 @@ const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
               <div className="w-8 h-8 rounded-full bg-slate-800 animate-pulse" />
             ) : isAuthenticated ? (
               <div className="flex items-center gap-1 sm:gap-2">
+                {/* Create — jump to your content to upload */}
+                <Link to="/my-content" className="hidden sm:block">
+                  <button
+                    type="button"
+                    className="flex items-center gap-1.5 pl-2.5 pr-3.5 py-1.5 rounded-full text-sm font-medium transition-colors"
+                    style={{ background: iconHoverBg, color: dropdownTextPrimary }}
+                    onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.85')}
+                    onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
+                  >
+                    <Plus size={17} />
+                    <span className="hidden lg:inline">Create</span>
+                  </button>
+                </Link>
+
                 {/* Notification bell */}
                 <div className="relative hidden sm:block" ref={notifRef}>
                   <button
