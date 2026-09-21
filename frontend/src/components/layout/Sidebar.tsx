@@ -1,26 +1,39 @@
 import { Home, ThumbsUp, Clock, Video, FolderHeart, Users, HelpCircle, Settings, UserCircle2, X } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useState } from 'react';
+import { useData } from '../../context/DataContext';
+import Avatar from '../common/Avatar';
 
 interface SidebarProps {
   isMobileOpen: boolean;
   onClose: () => void;
 }
 
+interface MenuItem {
+  icon: React.ReactNode;
+  text: string;
+  link: string;
+}
+
 const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onClose }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const location = useLocation();
+  const { subscribedChannels } = useData();
 
-  const menuItems = [
-    { icon: <Home size={20} />,        text: 'Home',        link: '/' },
-    { icon: <ThumbsUp size={20} />,    text: 'Liked Videos',link: '/liked' },
-    { icon: <Clock size={20} />,       text: 'History',     link: '/history' },
-    { icon: <Video size={20} />,       text: 'My Content',  link: '/my-content' },
-    { icon: <FolderHeart size={20} />, text: 'Collections', link: '/collections' },
-    { icon: <Users size={20} />,       text: 'Subscribers', link: '/subscribers' },
+  const primaryItems: MenuItem[] = [
+    { icon: <Home size={20} />, text: 'Home', link: '/' },
   ];
 
-  const bottomItems = [
+  // Grouped under a "You" header, mirroring YouTube's library section.
+  const youItems: MenuItem[] = [
+    { icon: <Clock size={20} />,       text: 'History',      link: '/history' },
+    { icon: <ThumbsUp size={20} />,    text: 'Liked Videos', link: '/liked' },
+    { icon: <Video size={20} />,       text: 'My Content',   link: '/my-content' },
+    { icon: <FolderHeart size={20} />, text: 'Collections',  link: '/collections' },
+    { icon: <Users size={20} />,       text: 'Subscribers',  link: '/subscribers' },
+  ];
+
+  const bottomItems: MenuItem[] = [
     { icon: <UserCircle2 size={20} />, text: 'Profile',  link: '/profile' },
     { icon: <HelpCircle size={20} />,  text: 'Support',  link: '/support' },
     { icon: <Settings size={20} />,    text: 'Settings', link: '/settings/personal' },
@@ -31,7 +44,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onClose }) => {
 
   const showLabel = isMobileOpen || isExpanded;
 
-  const renderItem = (item: { icon: React.ReactNode; text: string; link: string }) => (
+  const renderItem = (item: MenuItem) => (
     <Link to={item.link} key={item.link} onClick={onClose}>
       <div
         className={`sidebar-item ${isActive(item.link) ? 'bg-purple-600 !text-white' : ''}`}
@@ -47,6 +60,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onClose }) => {
       </div>
     </Link>
   );
+
+  const sectionHeader = (label: string) =>
+    showLabel ? (
+      <p className="px-3 pt-3 pb-1 text-xs font-semibold" style={{ color: 'rgb(var(--app-muted))' }}>
+        {label}
+      </p>
+    ) : (
+      <div className="h-px bg-slate-800/60 mx-2 my-2" />
+    );
 
   return (
     <>
@@ -82,12 +104,34 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onClose }) => {
           </button>
         </div>
 
-        <div className="flex flex-col justify-between h-full py-3 px-2">
+        <div className="flex flex-col justify-between min-h-full py-3 px-2">
           <div className="space-y-0.5">
-            {menuItems.map(renderItem)}
+            {primaryItems.map(renderItem)}
+
+            {sectionHeader('You')}
+            {youItems.map(renderItem)}
+
+            {/* Subscriptions — real followed channels, shown when expanded */}
+            {showLabel && subscribedChannels.length > 0 && (
+              <>
+                {sectionHeader('Subscriptions')}
+                {subscribedChannels.slice(0, 7).map((channel) => (
+                  <Link to={`/channel/${channel.id}`} key={channel.id} onClick={onClose}>
+                    <div
+                      className={`sidebar-item ${location.pathname === `/channel/${channel.id}` ? 'bg-purple-600 !text-white' : ''}`}
+                    >
+                      <Avatar src={channel.avatar} alt={channel.name} size="sm" className="shrink-0" />
+                      <span className="text-sm font-medium overflow-hidden whitespace-nowrap truncate">
+                        {channel.name}
+                      </span>
+                    </div>
+                  </Link>
+                ))}
+              </>
+            )}
           </div>
 
-          <div className="space-y-0.5 pb-4">
+          <div className="space-y-0.5 pb-4 pt-2">
             <div className="h-px bg-slate-800/60 mx-2 my-2" />
             {bottomItems.map(renderItem)}
           </div>
