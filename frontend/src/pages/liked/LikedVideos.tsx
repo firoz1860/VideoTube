@@ -1,11 +1,12 @@
 import React from 'react';
 import { useData } from '../../context/DataContext';
 import VideoListItem from '../../components/video/VideoListItem';
+import VideoListItemSkeleton from '../../components/video/VideoListItemSkeleton';
 import { Heart, Trash2 } from 'lucide-react';
 import Button from '../../components/common/Button';
 
 const LikedVideos: React.FC = () => {
-  const { videos, likedVideos, toggleLike } = useData();
+  const { videos, likedVideos, toggleLike, isLoading } = useData();
   const likedVideoList = videos.filter((video) => likedVideos.includes(video.id));
 
   const clearAllLiked = async () => {
@@ -27,7 +28,13 @@ const LikedVideos: React.FC = () => {
         )}
       </div>
 
-      {likedVideoList.length > 0 ? (
+      {isLoading && likedVideoList.length === 0 ? (
+        <div className="space-y-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <VideoListItemSkeleton key={i} />
+          ))}
+        </div>
+      ) : likedVideoList.length > 0 ? (
         <div className="space-y-4">
           {likedVideoList.map((video) => (
             <div key={video.id} className="relative group">
