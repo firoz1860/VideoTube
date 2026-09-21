@@ -1,40 +1,54 @@
+import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
 import Layout from './components/layout/Layout';
 
+// Home is the landing route — keep it in the initial bundle so the first
+// paint needs no extra chunk request. Everything else is code-split and
+// loaded on demand, which keeps the initial download small and startup fast.
 import Home from './pages/home/Home';
-import VideoDetail from './pages/video-detail/VideoDetail';
-import VideoListingCard from './pages/video-listing/VideoListingCard';
-import VideoListingList from './pages/video-listing/VideoListingList';
-import ChannelEmptyVideo from './pages/channel/ChannelEmptyVideo';
-import ChannelVideoList from './pages/channel/ChannelVideoList';
-import ChannelEmptyPlaylist from './pages/channel/ChannelEmptyPlaylist';
-import ChannelPlaylist from './pages/channel/ChannelPlaylist';
-import ChannelPlaylistVideos from './pages/channel/ChannelPlaylistVideos';
-import ChannelEmptyTweet from './pages/channel/ChannelEmptyTweet';
-import ChannelTweets from './pages/channel/ChannelTweets';
-import ChannelEmptySubscribed from './pages/channel/ChannelEmptySubscribed';
-import ChannelSubscribed from './pages/channel/ChannelSubscribed';
-import MyChannelEmptyVideo from './pages/channel/MyChannelEmptyVideo';
-import MyChannelEmptyTweet from './pages/channel/MyChannelEmptyTweet';
-import EditPersonalInfo from './pages/settings/EditPersonalInfo';
-import EditChannelInfo from './pages/settings/EditChannelInfo';
-import ChangePassword from './pages/settings/ChangePassword';
-import AdminDashboard from './pages/admin/AdminDashboard';
-import Login from './pages/auth/Login';
-import Register from './pages/auth/Register';
-import NotFound from './pages/not-found/NotFound';
-import SearchResults from './pages/search/SearchResults';
-import LikedVideos from './pages/liked/LikedVideos';
-import History from './pages/history/History';
-import MyContent from './pages/my-content/MyContent';
-import Collections from './pages/collections/Collections';
-import Subscribers from './pages/subscribers/Subscribers';
-import Support from './pages/support/Support';
-import Terms from './pages/legal/Terms';
-import Privacy from './pages/legal/Privacy';
+
+const VideoDetail = lazy(() => import('./pages/video-detail/VideoDetail'));
+const VideoListingCard = lazy(() => import('./pages/video-listing/VideoListingCard'));
+const VideoListingList = lazy(() => import('./pages/video-listing/VideoListingList'));
+const ChannelEmptyVideo = lazy(() => import('./pages/channel/ChannelEmptyVideo'));
+const ChannelVideoList = lazy(() => import('./pages/channel/ChannelVideoList'));
+const ChannelEmptyPlaylist = lazy(() => import('./pages/channel/ChannelEmptyPlaylist'));
+const ChannelPlaylist = lazy(() => import('./pages/channel/ChannelPlaylist'));
+const ChannelPlaylistVideos = lazy(() => import('./pages/channel/ChannelPlaylistVideos'));
+const ChannelEmptyTweet = lazy(() => import('./pages/channel/ChannelEmptyTweet'));
+const ChannelTweets = lazy(() => import('./pages/channel/ChannelTweets'));
+const ChannelEmptySubscribed = lazy(() => import('./pages/channel/ChannelEmptySubscribed'));
+const ChannelSubscribed = lazy(() => import('./pages/channel/ChannelSubscribed'));
+const MyChannelEmptyVideo = lazy(() => import('./pages/channel/MyChannelEmptyVideo'));
+const MyChannelEmptyTweet = lazy(() => import('./pages/channel/MyChannelEmptyTweet'));
+const EditPersonalInfo = lazy(() => import('./pages/settings/EditPersonalInfo'));
+const EditChannelInfo = lazy(() => import('./pages/settings/EditChannelInfo'));
+const ChangePassword = lazy(() => import('./pages/settings/ChangePassword'));
+const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
+const Login = lazy(() => import('./pages/auth/Login'));
+const Register = lazy(() => import('./pages/auth/Register'));
+const NotFound = lazy(() => import('./pages/not-found/NotFound'));
+const SearchResults = lazy(() => import('./pages/search/SearchResults'));
+const LikedVideos = lazy(() => import('./pages/liked/LikedVideos'));
+const History = lazy(() => import('./pages/history/History'));
+const MyContent = lazy(() => import('./pages/my-content/MyContent'));
+const Collections = lazy(() => import('./pages/collections/Collections'));
+const Subscribers = lazy(() => import('./pages/subscribers/Subscribers'));
+const Support = lazy(() => import('./pages/support/Support'));
+const Terms = lazy(() => import('./pages/legal/Terms'));
+const Privacy = lazy(() => import('./pages/legal/Privacy'));
+
+const RouteFallback = () => (
+  <div className="flex items-center justify-center py-24">
+    <div
+      className="w-9 h-9 rounded-full animate-spin"
+      style={{ border: '3px solid rgba(124,58,237,0.25)', borderTopColor: '#7c3aed' }}
+    />
+  </div>
+);
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -66,56 +80,58 @@ const AppRoutes = () => {
   return (
     <ThemeProvider>
       <DataProvider>
-        <Routes>
-          <Route
-            path="/login"
-            element={
-              <PublicOnlyRoute>
-                <Login />
-              </PublicOnlyRoute>
-            }
-          />
-          <Route
-            path="/register"
-            element={
-              <PublicOnlyRoute>
-                <Register />
-              </PublicOnlyRoute>
-            }
-          />
-          <Route element={<AppShell />}>
-            <Route path="/" element={<Home />} />
-            <Route path="/search" element={<SearchResults />} />
-            <Route path="/video/:id" element={<VideoDetail />} />
-            <Route path="/videos/card" element={<VideoListingCard />} />
-            <Route path="/videos/list" element={<VideoListingList />} />
-            <Route path="/channel/:id" element={<ChannelVideoList />} />
-            <Route path="/channel/:id/empty" element={<ChannelEmptyVideo />} />
-            <Route path="/channel/:id/playlists/empty" element={<ChannelEmptyPlaylist />} />
-            <Route path="/channel/:id/playlists" element={<ChannelPlaylist />} />
-            <Route path="/channel/:id/playlist/:playlistId" element={<ChannelPlaylistVideos />} />
-            <Route path="/channel/:id/tweets/empty" element={<ChannelEmptyTweet />} />
-            <Route path="/channel/:id/tweets" element={<ChannelTweets />} />
-            <Route path="/channel/:id/subscribed/empty" element={<ChannelEmptySubscribed />} />
-            <Route path="/channel/:id/subscribed" element={<ChannelSubscribed />} />
-            <Route path="/liked" element={<PrivateRoute><LikedVideos /></PrivateRoute>} />
-            <Route path="/history" element={<PrivateRoute><History /></PrivateRoute>} />
-            <Route path="/my-content" element={<PrivateRoute><MyContent /></PrivateRoute>} />
-            <Route path="/collections" element={<PrivateRoute><Collections /></PrivateRoute>} />
-            <Route path="/subscribers" element={<PrivateRoute><Subscribers /></PrivateRoute>} />
-            <Route path="/support" element={<Support />} />
-            <Route path="/terms" element={<Terms />} />
-            <Route path="/privacy" element={<Privacy />} />
-            <Route path="/profile" element={<PrivateRoute><EditPersonalInfo /></PrivateRoute>} />
-            <Route path="/my-channel/empty" element={<PrivateRoute><MyChannelEmptyVideo /></PrivateRoute>} />
-            <Route path="/my-channel/tweets/empty" element={<PrivateRoute><MyChannelEmptyTweet /></PrivateRoute>} />
-            <Route path="/settings/personal" element={<PrivateRoute><EditPersonalInfo /></PrivateRoute>} />
-            <Route path="/settings/channel" element={<PrivateRoute><EditChannelInfo /></PrivateRoute>} />
-            <Route path="/settings/password" element={<PrivateRoute><ChangePassword /></PrivateRoute>} />
-            <Route path="/admin" element={<PrivateRoute><AdminDashboard /></PrivateRoute>} />
-            <Route path="*" element={<NotFound />} />
-          </Route>
-        </Routes>
+        <Suspense fallback={<RouteFallback />}>
+          <Routes>
+            <Route
+              path="/login"
+              element={
+                <PublicOnlyRoute>
+                  <Login />
+                </PublicOnlyRoute>
+              }
+            />
+            <Route
+              path="/register"
+              element={
+                <PublicOnlyRoute>
+                  <Register />
+                </PublicOnlyRoute>
+              }
+            />
+            <Route element={<AppShell />}>
+              <Route path="/" element={<Home />} />
+              <Route path="/search" element={<SearchResults />} />
+              <Route path="/video/:id" element={<VideoDetail />} />
+              <Route path="/videos/card" element={<VideoListingCard />} />
+              <Route path="/videos/list" element={<VideoListingList />} />
+              <Route path="/channel/:id" element={<ChannelVideoList />} />
+              <Route path="/channel/:id/empty" element={<ChannelEmptyVideo />} />
+              <Route path="/channel/:id/playlists/empty" element={<ChannelEmptyPlaylist />} />
+              <Route path="/channel/:id/playlists" element={<ChannelPlaylist />} />
+              <Route path="/channel/:id/playlist/:playlistId" element={<ChannelPlaylistVideos />} />
+              <Route path="/channel/:id/tweets/empty" element={<ChannelEmptyTweet />} />
+              <Route path="/channel/:id/tweets" element={<ChannelTweets />} />
+              <Route path="/channel/:id/subscribed/empty" element={<ChannelEmptySubscribed />} />
+              <Route path="/channel/:id/subscribed" element={<ChannelSubscribed />} />
+              <Route path="/liked" element={<PrivateRoute><LikedVideos /></PrivateRoute>} />
+              <Route path="/history" element={<PrivateRoute><History /></PrivateRoute>} />
+              <Route path="/my-content" element={<PrivateRoute><MyContent /></PrivateRoute>} />
+              <Route path="/collections" element={<PrivateRoute><Collections /></PrivateRoute>} />
+              <Route path="/subscribers" element={<PrivateRoute><Subscribers /></PrivateRoute>} />
+              <Route path="/support" element={<Support />} />
+              <Route path="/terms" element={<Terms />} />
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/profile" element={<PrivateRoute><EditPersonalInfo /></PrivateRoute>} />
+              <Route path="/my-channel/empty" element={<PrivateRoute><MyChannelEmptyVideo /></PrivateRoute>} />
+              <Route path="/my-channel/tweets/empty" element={<PrivateRoute><MyChannelEmptyTweet /></PrivateRoute>} />
+              <Route path="/settings/personal" element={<PrivateRoute><EditPersonalInfo /></PrivateRoute>} />
+              <Route path="/settings/channel" element={<PrivateRoute><EditChannelInfo /></PrivateRoute>} />
+              <Route path="/settings/password" element={<PrivateRoute><ChangePassword /></PrivateRoute>} />
+              <Route path="/admin" element={<PrivateRoute><AdminDashboard /></PrivateRoute>} />
+              <Route path="*" element={<NotFound />} />
+            </Route>
+          </Routes>
+        </Suspense>
       </DataProvider>
     </ThemeProvider>
   );
