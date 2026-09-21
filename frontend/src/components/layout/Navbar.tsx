@@ -1,4 +1,4 @@
-import { Menu, Search, X, Bell, Plus } from 'lucide-react';
+import { Menu, Search, X, Bell, Plus, Sun, Moon } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useRef, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
@@ -17,7 +17,7 @@ interface NavbarProps {
 
 const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
   const { isAuthenticated, isLoading, user, logout } = useAuth();
-  const { resolvedTheme } = useTheme();
+  const { resolvedTheme, toggleTheme } = useTheme();
   const { videos, subscriptions } = useData();
   const { permission, notifications, unreadCount, requestPermission, markRead, markAllRead, clearAll } =
     useNotifications(videos, subscriptions, isAuthenticated);
@@ -141,6 +141,20 @@ const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
 
           {/* Right side */}
           <div className="ml-auto flex items-center gap-2 sm:gap-3">
+            {/* Dark / light toggle */}
+            <button
+              type="button"
+              onClick={toggleTheme}
+              aria-label={isLight ? 'Switch to dark mode' : 'Switch to light mode'}
+              title={isLight ? 'Switch to dark mode' : 'Switch to light mode'}
+              className="p-2 rounded-xl transition-colors duration-150"
+              style={{ color: iconColor }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = iconHoverBg)}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+            >
+              {isLight ? <Moon size={18} /> : <Sun size={18} />}
+            </button>
+
             {isLoading ? (
               <div className="w-8 h-8 rounded-full bg-slate-800 animate-pulse" />
             ) : isAuthenticated ? (
