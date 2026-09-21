@@ -50,8 +50,12 @@ const userSchema = new Schema(
     },
     authProvider: {
       type: String,
-      enum: ["local", "google"],
+      enum: ["local", "google", "guest"],
       default: "local",
+    },
+    isGuest: {
+      type: Boolean,
+      default: false,
     },
     refreshToken: {
       type: String,

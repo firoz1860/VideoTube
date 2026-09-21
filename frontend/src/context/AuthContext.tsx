@@ -28,6 +28,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (identifier: string, password: string) => Promise<void>;
+  loginAsGuest: () => Promise<void>;
   loginWithGoogle: (credential: string) => Promise<void>;
   register: (
     fullName: string,
@@ -172,6 +173,36 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
+  const loginAsGuest = async () => {
+    setIsLoading(true);
+
+    try {
+      const response = await fetch(`${API_URL}/users/guest`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error(await getErrorMessage(response, 'Guest login failed'));
+      }
+
+      const payload = await response.json();
+      const nextUser = normalizeUser(payload.data || {});
+
+      if (!nextUser) {
+        throw new Error('Guest login response did not include a valid user id');
+      }
+
+      setUser(nextUser);
+      setIsAuthenticated(true);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const loginWithGoogle = async (credential: string) => {
     setIsLoading(true);
 
@@ -258,7 +289,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, isLoading, login, loginWithGoogle, register, logout, checkAuth, user, setUser }}>
+    <AuthContext.Provider value={{ isAuthenticated, isLoading, login, loginAsGuest, loginWithGoogle, register, logout, checkAuth, user, setUser }}>
       {children}
     </AuthContext.Provider>
   );

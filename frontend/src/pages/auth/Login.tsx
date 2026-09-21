@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Mail, Lock, AlertCircle, CheckCircle, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Mail, Lock, AlertCircle, CheckCircle, Eye, EyeOff, Loader2, UserRound } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { API_URL } from '../../lib/api';
@@ -30,6 +30,7 @@ const Login: React.FC = () => {
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError]           = useState('');
   const [isLoading, setIsLoading]   = useState(false);
+  const [guestLoading, setGuestLoading] = useState(false);
   const [googleClientId, setGoogleClientId] = useState(ENV_GOOGLE_CLIENT_ID);
 
   const navigate       = useNavigate();
@@ -37,7 +38,7 @@ const Login: React.FC = () => {
   const locationState  = location.state as LoginLocationState | null;
   const googleRef      = useRef<HTMLDivElement | null>(null);
   const isGoogleInit   = useRef(false);
-  const { login, loginWithGoogle } = useAuth();
+  const { login, loginAsGuest, loginWithGoogle } = useAuth();
   const { resolvedTheme } = useTheme();
   const isLight = resolvedTheme === 'light';
 
@@ -84,6 +85,18 @@ const Login: React.FC = () => {
     document.body.appendChild(s);
     return () => { cancelled = true; };
   }, [googleClientId, handleGoogleCredential]);
+
+  /* ── Continue as guest ── */
+  const handleGuest = async () => {
+    if (guestLoading || isLoading) return;
+    setError(''); setGuestLoading(true);
+    try {
+      await loginAsGuest();
+      navigate(DASHBOARD_PATH, { replace: true });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Guest login failed');
+    } finally { setGuestLoading(false); }
+  };
 
   /* ── Form submit ── */
   const handleSubmit = async (e: React.FormEvent) => {
@@ -233,6 +246,30 @@ const Login: React.FC = () => {
                 {isLoading ? <><Loader2 size={16} className="animate-spin" /> Signing In…</> : 'Sign In'}
               </button>
             </form>
+
+            {/* Guest access */}
+            <button
+              type="button"
+              onClick={() => void handleGuest()}
+              disabled={guestLoading || isLoading}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all active:scale-[0.98]"
+              style={{
+                background: inputBg,
+                border: `1.5px solid ${inputBdr}`,
+                color: textPri,
+                cursor: guestLoading || isLoading ? 'not-allowed' : 'pointer',
+                opacity: guestLoading || isLoading ? 0.7 : 1,
+              }}
+              onMouseEnter={(e) => { if (!guestLoading && !isLoading) e.currentTarget.style.borderColor = '#7c3aed'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = inputBdr; }}
+            >
+              {guestLoading
+                ? <><Loader2 size={16} className="animate-spin" /> Entering…</>
+                : <><UserRound size={16} style={{ color: '#8b5cf6' }} /> Continue as guest</>}
+            </button>
+            <p className="text-center text-xs" style={{ color: textMut }}>
+              Explore VidTube instantly — no account needed
+            </p>
           </div>
 
           {/* Footer */}

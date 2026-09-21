@@ -168,6 +168,47 @@ const loginUser = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, serializeUser(loggedInUser), "Login successful"));
 });
 
+const GUEST_EMAIL = "guest@vidtube.demo";
+const GUEST_USERNAME = "guest";
+
+// Find-or-create a shared, read-only-ish demo account so visitors can explore
+// the app without registering. Issues the exact same access/refresh cookies as
+// a normal login so the rest of the app treats the guest like any other user.
+const guestLogin = asyncHandler(async (req, res) => {
+  let user = await User.findOne({ email: GUEST_EMAIL });
+
+  if (!user) {
+    try {
+      user = await User.create({
+        fullName: "Guest User",
+        email: GUEST_EMAIL,
+        username: GUEST_USERNAME,
+        avatar:
+          "https://ui-avatars.com/api/?name=Guest&background=7c3aed&color=ffffff",
+        password: randomBytes(24).toString("hex"),
+        authProvider: "guest",
+        isGuest: true,
+      });
+    } catch (error) {
+      // Another concurrent request may have created it first (unique index) —
+      // fall back to fetching the existing record instead of failing.
+      if (error?.code === 11000) {
+        user = await User.findOne({ email: GUEST_EMAIL });
+      }
+      if (!user) throw error;
+    }
+  }
+
+  const { accessToken, refreshToken } = await generateAccessAndRefreshToken(user._id);
+  const loggedInUser = await getSafeUserById(user._id);
+
+  return res
+    .status(200)
+    .cookie("accessToken", accessToken, getCookieOptions())
+    .cookie("refreshToken", refreshToken, getCookieOptions())
+    .json(new ApiResponse(200, serializeUser(loggedInUser), "Guest login successful"));
+});
+
 const getGoogleAuthConfig = asyncHandler(async (_req, res) => {
   const clientId = process.env.GOOGLE_CLIENT_ID || "";
   return res.status(200).json(
@@ -476,6 +517,7 @@ const clearWatchHistory = asyncHandler(async (req, res) => {
 });
 
 export {
+  guestLogin,
   registerUser,
   loginUser,
   getGoogleAuthConfig,
