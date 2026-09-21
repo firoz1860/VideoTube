@@ -1,11 +1,12 @@
 import React from 'react';
 import { useData } from '../../context/DataContext';
 import VideoListItem from '../../components/video/VideoListItem';
+import VideoListItemSkeleton from '../../components/video/VideoListItemSkeleton';
 import { Clock, Trash2, X } from 'lucide-react';
 import Button from '../../components/common/Button';
 
 const History: React.FC = () => {
-  const { videos, watchHistory, removeFromHistory, clearHistory } = useData();
+  const { videos, watchHistory, removeFromHistory, clearHistory, isLoading } = useData();
   const historyVideos = videos
     .filter((video) => watchHistory.includes(video.id))
     .sort((a, b) => watchHistory.indexOf(a.id) - watchHistory.indexOf(b.id));
@@ -25,7 +26,13 @@ const History: React.FC = () => {
         )}
       </div>
 
-      {historyVideos.length > 0 ? (
+      {isLoading && historyVideos.length === 0 ? (
+        <div className="space-y-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <VideoListItemSkeleton key={i} />
+          ))}
+        </div>
+      ) : historyVideos.length > 0 ? (
         <div className="space-y-4">
           {historyVideos.map((video) => (
             <div key={video.id} className="relative group">

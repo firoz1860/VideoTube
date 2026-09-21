@@ -15,7 +15,7 @@ type ModalState =
   | { type: 'delete'; collection: Collection };
 
 const Collections: React.FC = () => {
-  const { collections, addCollection, updateCollection, deleteCollection, removeVideoFromCollection, videos } = useData();
+  const { collections, addCollection, updateCollection, deleteCollection, removeVideoFromCollection, videos, isLoading } = useData();
 
   const [modal, setModal] = useState<ModalState>({ type: 'none' });
   const [formData, setFormData] = useState({ name: '', description: '' });
@@ -287,7 +287,19 @@ const Collections: React.FC = () => {
         </Button>
       </div>
 
-      {collections.length > 0 ? (
+      {isLoading && collections.length === 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="rounded-xl overflow-hidden">
+              <div className="skeleton aspect-video w-full" />
+              <div className="p-3 space-y-2">
+                <div className="skeleton h-4 w-2/3" />
+                <div className="skeleton h-3 w-1/3" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : collections.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {collections.map((collection) => {
             const collectionVideos = collection.videos.map((id) => videosById.get(id)).filter(Boolean);

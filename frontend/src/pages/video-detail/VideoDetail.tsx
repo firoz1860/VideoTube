@@ -228,6 +228,7 @@ const VideoDetail: React.FC = () => {
   };
 
   const isSavedInAny = collections.some((c) => c.videos.includes(video.id));
+  const canExpandDescription = Boolean(video.description && video.description.length > 100);
 
   return (
     <div className="container mx-auto px-4">
@@ -341,27 +342,34 @@ const VideoDetail: React.FC = () => {
             </div>
           </div>
 
-          {/* Description */}
-          <div className="bg-slate-800 rounded-lg p-4 mb-6">
-            <div className="flex items-center gap-3 text-gray-400 text-sm mb-2">
+          {/* Description — click the collapsed card to expand (YouTube-style) */}
+          <div
+            className={`bg-slate-800 rounded-xl p-4 mb-6 transition-colors ${
+              canExpandDescription && !showDescription ? 'cursor-pointer hover:bg-slate-700/70' : ''
+            }`}
+            onClick={() => { if (canExpandDescription && !showDescription) setShowDescription(true); }}
+          >
+            <div className="flex items-center gap-2 text-sm font-semibold mb-2">
               <span>{formatNumber(video.views)} views</span>
               <span>&middot;</span>
               <span>{formatTimeAgo(video.timestamp)}</span>
             </div>
-            {video.description && (
+            {video.description ? (
               <>
                 <p className={`text-sm text-gray-300 whitespace-pre-wrap ${showDescription ? '' : 'line-clamp-2'}`}>
                   {video.description}
                 </p>
-                {video.description.length > 100 && (
+                {canExpandDescription && (
                   <button
-                    className="flex items-center gap-1 text-sm text-purple-400 hover:text-purple-300 mt-2"
-                    onClick={() => setShowDescription((v) => !v)}
+                    className="flex items-center gap-1 text-sm font-medium text-gray-200 hover:text-white mt-2"
+                    onClick={(e) => { e.stopPropagation(); setShowDescription((v) => !v); }}
                   >
                     {showDescription ? <><ChevronUp size={14} /> Show less</> : <><ChevronDown size={14} /> Show more</>}
                   </button>
                 )}
               </>
+            ) : (
+              <p className="text-sm text-gray-500">No description provided.</p>
             )}
           </div>
 
