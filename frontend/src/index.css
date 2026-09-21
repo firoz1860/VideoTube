@@ -590,3 +590,17 @@ select {
     border-color 0.25s var(--ease-in-out),
     color 0.25s var(--ease-in-out);
 }
+
+/* ─── Respect the user's reduced-motion preference ──────────────────────────── */
+/* Users who set "reduce motion" at the OS level get near-instant animations and
+   no smooth-scroll — an accessibility and production baseline. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

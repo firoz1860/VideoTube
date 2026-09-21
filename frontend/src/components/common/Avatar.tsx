@@ -14,6 +14,7 @@ const Avatar: React.FC<AvatarProps> = ({
   className = '',
 }) => {
   const [hasError, setHasError] = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
   const sizeClasses = {
     sm: 'w-6 h-6',
@@ -23,6 +24,7 @@ const Avatar: React.FC<AvatarProps> = ({
 
   useEffect(() => {
     setHasError(false);
+    setLoaded(false);
   }, [src]);
 
   const initials = useMemo(() => {
@@ -37,7 +39,15 @@ const Avatar: React.FC<AvatarProps> = ({
   return (
     <div className={`rounded-full overflow-hidden bg-slate-700 flex items-center justify-center ${sizeClasses[size]} ${className}`}>
       {!hasError && src ? (
-        <img src={src} alt={alt} className="w-full h-full object-cover" onError={() => setHasError(true)} />
+        <img
+          ref={(node) => { if (node?.complete && node.naturalWidth > 0) setLoaded(true); }}
+          src={src}
+          alt={alt}
+          className={`w-full h-full object-cover transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+          decoding="async"
+          onLoad={() => setLoaded(true)}
+          onError={() => setHasError(true)}
+        />
       ) : (
         <span className="text-[10px] font-semibold text-white">{initials}</span>
       )}
