@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { Video } from '../../types';
 import { useData } from '../../context/DataContext';
@@ -11,6 +12,7 @@ interface VideoCardProps {
 const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
   const { subscriptions, toggleSubscription, addToHistory } = useData();
   const isSubscribed = subscriptions.includes(video.channel.id);
+  const [thumbLoaded, setThumbLoaded] = useState(false);
 
   const handleVideoClick = () => {
     void addToHistory(video.id);
@@ -30,10 +32,13 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
       >
         {video.thumbnail ? (
           <img
+            ref={(node) => { if (node?.complete) setThumbLoaded(true); }}
             src={video.thumbnail}
             alt={video.title}
-            className="video-thumbnail w-full h-full object-cover"
+            className={`video-thumbnail w-full h-full object-cover transition-opacity duration-500 ${thumbLoaded ? 'opacity-100' : 'opacity-0'}`}
             loading="lazy"
+            decoding="async"
+            onLoad={() => setThumbLoaded(true)}
           />
         ) : (
           <div className="w-full h-full bg-slate-700 flex items-center justify-center text-slate-500 text-xs">
