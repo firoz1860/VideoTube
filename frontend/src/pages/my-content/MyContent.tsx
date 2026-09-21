@@ -37,16 +37,22 @@ const MyContent: React.FC = () => {
   const handleUpload = async (formData: FormData) => {
     const file = formData.get('videoFile') as File | null;
     setUploadFileName(file?.name || 'video');
-    setShowUploadModal(false);
+    // Keep the upload modal mounted underneath the progress overlay so that, on
+    // failure, the user keeps their inputs and can see the error and retry.
     setShowUploadingModal(true);
     setUploadProgress(20);
 
     try {
       await addVideo(formData);
       setUploadProgress(100);
-      setShowSuccessModal(true);
-    } finally {
       setShowUploadingModal(false);
+      setShowUploadModal(false);
+      setShowSuccessModal(true);
+    } catch (error) {
+      // Hide the progress overlay and re-throw so the upload modal can show the
+      // error inline instead of failing silently.
+      setShowUploadingModal(false);
+      throw error;
     }
   };
 

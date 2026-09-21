@@ -109,12 +109,16 @@ const publishAVideo = asyncHandler(async (req, res) => {
   const videoFile = req.files?.videoFile?.[0];
   const thumbnailFile = req.files?.thumbnail?.[0];
 
-  if (!title?.trim() || !description?.trim()) {
-    throw new ApiError(400, "Title and description are required");
+  if (!title?.trim()) {
+    throw new ApiError(400, "Title is required");
   }
 
-  if (!videoFile?.path || !thumbnailFile?.path) {
-    throw new ApiError(400, "Video file and thumbnail are required");
+  if (!videoFile?.path) {
+    throw new ApiError(400, "A video file is required");
+  }
+
+  if (!thumbnailFile?.path) {
+    throw new ApiError(400, "A thumbnail image is required");
   }
 
   const [videoUpload, thumbnailUpload] = await Promise.all([
@@ -132,7 +136,7 @@ const publishAVideo = asyncHandler(async (req, res) => {
     video: videoUpload.secure_url,
     thumbnail: thumbnailUpload.secure_url,
     title: title.trim(),
-    description: description.trim(),
+    description: description?.trim() || "",
     duration: Math.ceil(videoUpload.duration || 0),
     owner: req.user._id,
   });
