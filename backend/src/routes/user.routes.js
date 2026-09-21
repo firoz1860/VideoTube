@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   registerUser,
   loginUser,
+  guestLogin,
   getGoogleAuthConfig,
   googleAuth,
   logoutUser,
@@ -31,6 +32,7 @@ router.route("/register").post(
   registerUser
 );
 router.route("/login").post(loginUser);
+router.route("/guest").post(guestLogin);
 router.route("/google-config").get(getGoogleAuthConfig);
 router.route("/google-auth").post(googleAuth);
 router.route("/logout").post(logoutUser);

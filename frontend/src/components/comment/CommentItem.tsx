@@ -42,10 +42,14 @@ const CommentItem: React.FC<CommentItemProps> = ({ comment, currentUserId, onDel
       setIsDisliked(false);
       setDislikeCount((c) => Math.max(0, c - 1));
     }
+    // Optimistic count update; reconcile with the server or roll back on error.
+    const wasLiked = isLiked;
+    setLikeCount((c) => (wasLiked ? Math.max(0, c - 1) : c + 1));
     try {
       const result = await toggleCommentLike(comment.id);
       setLikeCount(result.likeCount);
     } catch {
+      setLikeCount((c) => (wasLiked ? c + 1 : Math.max(0, c - 1)));
       toast.error('Failed to update like');
     }
   };

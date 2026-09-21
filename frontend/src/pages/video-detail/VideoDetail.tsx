@@ -116,7 +116,7 @@ const VideoDetail: React.FC = () => {
       setIsDisliked(false);
       setDislikeCount((c) => Math.max(0, c - 1));
     }
-    await toggleLike(video.id);
+    // Optimistic count update — flips instantly; context reconciles with server.
     setVideo((current) =>
       current
         ? {
@@ -125,6 +125,7 @@ const VideoDetail: React.FC = () => {
           }
         : current
     );
+    await toggleLike(video.id);
   };
 
   const handleDislike = () => {

@@ -72,6 +72,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const usersRef = useRef<User[]>(users);
   useEffect(() => { usersRef.current = users; }, [users]);
 
+  // Refs mirror the latest toggle state so optimistic handlers can read the
+  // current value at click-time (for instant UI + accurate rollback) without
+  // adding these arrays to every callback's dependency list.
+  const likedVideosRef = useRef<string[]>(likedVideos);
+  useEffect(() => { likedVideosRef.current = likedVideos; }, [likedVideos]);
+  const subscriptionsRef = useRef<string[]>(subscriptions);
+  useEffect(() => { subscriptionsRef.current = subscriptions; }, [subscriptions]);
+  const likedCommentsRef = useRef<string[]>(likedComments);
+  useEffect(() => { likedCommentsRef.current = likedComments; }, [likedComments]);
+
   // ── refreshVideos — merges so private data is not wiped ────────────────────
   const refreshVideos = useCallback(async () => {
     const response = await api.getVideos();
@@ -128,17 +138,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [isAuthenticated, userId]); // userId is a primitive — profile updates won't re-trigger
 
   // ── Bootstrap ────────────────────────────────────────────────────────────────
+  // Only the public video feed gates the first paint — that is all a visitor
+  // needs to start browsing. Private data (likes, history, subscriptions,
+  // playlists) then hydrates in the background so it never blocks rendering.
   useEffect(() => {
+    let cancelled = false;
     const run = async () => {
       setIsLoading(true);
       try {
         await refreshVideos();
-        await loadPrivateData();
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
+      void loadPrivateData();
     };
     void run();
+    return () => { cancelled = true; };
   }, [refreshVideos, loadPrivateData]);
 
   // ── Sync channel info when user profile changes (name, avatar, etc.) ────────
@@ -167,6 +182,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
     setSubscribedChannels((cur) =>
       cur.map((c) => c.id === channelId ? { ...c, subscribers: subscriberCount } : c)
+    );
+  }, []);
+
+  // Adjust a channel's subscriber count by a relative delta (optimistic +1/-1
+  // before the server confirms the absolute value).
+  const adjustChannelSubscribers = useCallback((channelId: string, delta: number) => {
+    setVideos((cur) =>
+      cur.map((v) => v.channel.id === channelId
+        ? { ...v, channel: { ...v.channel, subscribers: Math.max(0, (v.channel.subscribers ?? 0) + delta) } }
+        : v)
+    );
+    setSubscribedChannels((cur) =>
+      cur.map((c) => c.id === channelId
+        ? { ...c, subscribers: Math.max(0, (c.subscribers ?? 0) + delta) }
+        : c)
     );
   }, []);
 
@@ -212,29 +242,76 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // ── Likes ─────────────────────────────────────────────────────────────────────
   const toggleLike = useCallback(async (videoId: string) => {
     if (!isAuthenticated) return;
-    const res = await api.toggleVideoLike(videoId);
+
+    const wasLiked = likedVideosRef.current.includes(videoId);
+
+    // Optimistic: flip the like state and count immediately.
     setLikedVideos((cur) =>
-      res.liked ? Array.from(new Set([videoId, ...cur])) : cur.filter((id) => id !== videoId)
+      wasLiked ? cur.filter((id) => id !== videoId) : Array.from(new Set([videoId, ...cur]))
     );
     setVideos((cur) =>
-      cur.map((v) => v.id === videoId ? { ...v, likeCount: res.likeCount } : v)
+      cur.map((v) => v.id === videoId
+        ? { ...v, likeCount: Math.max(0, (v.likeCount ?? 0) + (wasLiked ? -1 : 1)) }
+        : v)
     );
+
+    try {
+      const res = await api.toggleVideoLike(videoId);
+      // Reconcile with the authoritative server values.
+      setLikedVideos((cur) =>
+        res.liked ? Array.from(new Set([videoId, ...cur])) : cur.filter((id) => id !== videoId)
+      );
+      setVideos((cur) =>
+        cur.map((v) => v.id === videoId ? { ...v, likeCount: res.likeCount } : v)
+      );
+    } catch {
+      // Roll back the optimistic change on failure.
+      setLikedVideos((cur) =>
+        wasLiked ? Array.from(new Set([videoId, ...cur])) : cur.filter((id) => id !== videoId)
+      );
+      setVideos((cur) =>
+        cur.map((v) => v.id === videoId
+          ? { ...v, likeCount: Math.max(0, (v.likeCount ?? 0) + (wasLiked ? 1 : -1)) }
+          : v)
+      );
+    }
   }, [isAuthenticated]);
 
   const toggleCommentLike = useCallback(async (commentId: string) => {
     if (!isAuthenticated) return { likeCount: 0, liked: false };
-    const res = await api.toggleCommentLike(commentId);
+
+    const wasLiked = likedCommentsRef.current.includes(commentId);
+
+    // Optimistic: flip the button state immediately; caller handles the count.
     setLikedComments((cur) =>
-      res.liked ? Array.from(new Set([commentId, ...cur])) : cur.filter((id) => id !== commentId)
+      wasLiked ? cur.filter((id) => id !== commentId) : Array.from(new Set([commentId, ...cur]))
     );
-    return res;
+
+    try {
+      const res = await api.toggleCommentLike(commentId);
+      setLikedComments((cur) =>
+        res.liked ? Array.from(new Set([commentId, ...cur])) : cur.filter((id) => id !== commentId)
+      );
+      return res;
+    } catch (error) {
+      // Roll back, then re-throw so the caller can restore its own count.
+      setLikedComments((cur) =>
+        wasLiked ? Array.from(new Set([commentId, ...cur])) : cur.filter((id) => id !== commentId)
+      );
+      throw error;
+    }
   }, [isAuthenticated]);
 
   // ── History ───────────────────────────────────────────────────────────────────
   const addToHistory = useCallback(async (videoId: string) => {
     if (!isAuthenticated) return;
-    await api.addToWatchHistory(videoId);
+    // Optimistic — surface in history instantly; ignore failures silently.
     setWatchHistory((cur) => [videoId, ...cur.filter((id) => id !== videoId)]);
+    try {
+      await api.addToWatchHistory(videoId);
+    } catch {
+      /* non-critical: history will re-sync on next load */
+    }
   }, [isAuthenticated]);
 
   const removeFromHistory = useCallback(async (videoId: string) => {
@@ -253,32 +330,64 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const toggleSubscription = useCallback(async (channelId: string) => {
     if (!isAuthenticated) return;
 
-    const res = await api.toggleSubscription(channelId);
+    const wasSubscribed = subscriptionsRef.current.includes(channelId);
+    const delta = wasSubscribed ? -1 : 1;
+    const existing = usersRef.current.find((c) => c.id === channelId);
 
+    // ── Optimistic: flip the button + adjust counts immediately ──────────────
     setSubscriptions((cur) =>
-      res.subscribed
-        ? Array.from(new Set([channelId, ...cur]))
-        : cur.filter((id) => id !== channelId)
+      wasSubscribed ? cur.filter((id) => id !== channelId) : Array.from(new Set([channelId, ...cur]))
     );
-
-    updateVideoChannel(channelId, res.subscriberCount);
-
-    if (res.subscribed) {
-      // Use ref so we always read the latest users without a stale closure
-      const existing = usersRef.current.find((c) => c.id === channelId);
-      if (existing) {
-        setSubscribedChannels((cur) => [
-          { ...existing, subscribers: res.subscriberCount },
-          ...cur.filter((c) => c.id !== channelId),
-        ]);
-      } else {
-        const channelData = await api.getChannelById(channelId);
-        setSubscribedChannels((cur) => [mapUser(channelData), ...cur]);
-      }
-    } else {
+    adjustChannelSubscribers(channelId, delta);
+    if (wasSubscribed) {
       setSubscribedChannels((cur) => cur.filter((c) => c.id !== channelId));
+    } else if (existing) {
+      setSubscribedChannels((cur) => [
+        { ...existing, subscribers: Math.max(0, (existing.subscribers ?? 0) + 1) },
+        ...cur.filter((c) => c.id !== channelId),
+      ]);
     }
-  }, [isAuthenticated, updateVideoChannel]); // no longer depends on users
+
+    try {
+      const res = await api.toggleSubscription(channelId);
+
+      // Reconcile with authoritative server state.
+      setSubscriptions((cur) =>
+        res.subscribed ? Array.from(new Set([channelId, ...cur])) : cur.filter((id) => id !== channelId)
+      );
+      updateVideoChannel(channelId, res.subscriberCount);
+
+      if (res.subscribed) {
+        if (existing) {
+          setSubscribedChannels((cur) => [
+            { ...existing, subscribers: res.subscriberCount },
+            ...cur.filter((c) => c.id !== channelId),
+          ]);
+        } else {
+          // Channel wasn't cached — fetch its full record in the background.
+          const channelData = await api.getChannelById(channelId);
+          setSubscribedChannels((cur) =>
+            cur.some((c) => c.id === channelId) ? cur : [mapUser(channelData), ...cur]
+          );
+        }
+      } else {
+        setSubscribedChannels((cur) => cur.filter((c) => c.id !== channelId));
+      }
+    } catch {
+      // Roll back the optimistic changes on failure.
+      setSubscriptions((cur) =>
+        wasSubscribed ? Array.from(new Set([channelId, ...cur])) : cur.filter((id) => id !== channelId)
+      );
+      adjustChannelSubscribers(channelId, -delta);
+      if (wasSubscribed && existing) {
+        setSubscribedChannels((cur) =>
+          cur.some((c) => c.id === channelId) ? cur : [existing, ...cur]
+        );
+      } else if (!wasSubscribed) {
+        setSubscribedChannels((cur) => cur.filter((c) => c.id !== channelId));
+      }
+    }
+  }, [isAuthenticated, updateVideoChannel, adjustChannelSubscribers]);
 
   // ── Collections ───────────────────────────────────────────────────────────────
   const addCollection = useCallback(async (collection: Omit<Collection, 'id'>) => {
@@ -298,22 +407,45 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const addVideoToCollection = useCallback(async (collectionId: string, videoId: string) => {
-    await api.addVideoToPlaylist(collectionId, videoId);
+    // Optimistic add — the checkmark/count flips instantly.
     setCollections((cur) =>
       cur.map((c) => c.id === collectionId && !c.videos.includes(videoId)
         ? { ...c, videos: [videoId, ...c.videos] }
         : c)
     );
+    try {
+      await api.addVideoToPlaylist(collectionId, videoId);
+    } catch (error) {
+      setCollections((cur) =>
+        cur.map((c) => c.id === collectionId
+          ? { ...c, videos: c.videos.filter((id) => id !== videoId) }
+          : c)
+      );
+      throw error;
+    }
   }, []);
 
   const removeVideoFromCollection = useCallback(async (collectionId: string, videoId: string) => {
-    await api.removeVideoFromPlaylist(collectionId, videoId);
+    // Snapshot for rollback, then remove optimistically.
+    const wasPresent = collections.find((c) => c.id === collectionId)?.videos.includes(videoId) ?? false;
     setCollections((cur) =>
       cur.map((c) => c.id === collectionId
         ? { ...c, videos: c.videos.filter((id) => id !== videoId) }
         : c)
     );
-  }, []);
+    try {
+      await api.removeVideoFromPlaylist(collectionId, videoId);
+    } catch (error) {
+      if (wasPresent) {
+        setCollections((cur) =>
+          cur.map((c) => c.id === collectionId && !c.videos.includes(videoId)
+            ? { ...c, videos: [videoId, ...c.videos] }
+            : c)
+        );
+      }
+      throw error;
+    }
+  }, [collections]);
 
   return (
     <DataContext.Provider value={{
